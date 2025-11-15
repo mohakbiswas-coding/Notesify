@@ -1,33 +1,47 @@
 import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import path from "path";
+
 import notesRoutes from "./routes/notesRoutes.js";
 import { connectDB } from "./config/db.js";
-import dotenv from "dotenv";
 import rateLimiter from "./middleware/rateLimiter.js";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5001;
+const __dirname = path.resolve();
 
 // middleware
-// middlewares are mainly used for rate limiting
-app.use(express.json()); // This middleware will parse the JSON bodies: req.body 
+if (process.env.NODE_ENV !== "production") {
+    app.use(
+        cors({
+            origin: "http://localhost:5173",
+        })
+    );
+}
+app.use(express.json()); // this middleware will parse JSON bodies: req.body
 app.use(rateLimiter);
 
-// Our custom middleware
-// app.use((req,res,next) => {
-//     console.log(`Req method is ${req.method} & and Req URL is ${req.url}`);
-//     next();
+// our simple custom middleware
+// app.use((req, res, next) => {
+//   console.log(`Req method is ${req.method} & Req URL is ${req.url}`);
+//   next();
 // });
 
 app.use("/api/notes", notesRoutes);
 
-// What is an Endpoint?
-// An endpoint is a combination of URL + HTTP method that lets the client interact with a specific resource.
+if (process.env.NODE_ENV === "production") {
+    app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
-// Once the database is connected then only your application should start
+    app.get("*", (req, res) => {
+        res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
+    });
+}
+
 connectDB().then(() => {
     app.listen(PORT, () => {
-        console.log("Server Started on PORT: ", PORT);
+        console.log("Server started on PORT:", PORT);
     });
 });
